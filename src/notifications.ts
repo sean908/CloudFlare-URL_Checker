@@ -218,39 +218,57 @@ export async function sendNotifications(
 	config: GlobalConfig,
 	env: Env
 ): Promise<void> {
+	console.log('=== Starting notification dispatch ===');
+	console.log(`Failed sites count: ${result.failedSites.length}`);
+	console.log(`Email enabled: ${config.notifications.email?.enabled}, Recipients: ${config.notifications.email?.recipients.length || 0}`);
+	console.log(`Telegram enabled: ${config.notifications.telegram?.enabled}, Chat IDs: ${config.notifications.telegram?.chatIds.length || 0}`);
+	console.log(`Bark enabled: ${config.notifications.bark?.enabled}, Device keys: ${config.notifications.bark?.deviceKeys.length || 0}`);
+
 	const channels: NotificationLog['channels'] = [];
 
 	// 发送邮件
 	if (config.notifications.email?.enabled && config.notifications.email.recipients.length > 0) {
+		console.log('Attempting to send email notification...');
 		const emailResult = await sendEmailNotification(config.notifications.email.recipients, result, env);
+		console.log(`Email result: ${emailResult.success ? 'SUCCESS' : 'FAILED'} ${emailResult.error || ''}`);
 		channels.push({
 			type: 'email',
 			success: emailResult.success,
 			error: emailResult.error,
 			recipients: config.notifications.email.recipients,
 		});
+	} else {
+		console.log('Email notification skipped (not enabled or no recipients)');
 	}
 
 	// 发送 Telegram
 	if (config.notifications.telegram?.enabled && config.notifications.telegram.chatIds.length > 0) {
+		console.log('Attempting to send Telegram notification...');
 		const telegramResult = await sendTelegramNotification(config.notifications.telegram.chatIds, result, env);
+		console.log(`Telegram result: ${telegramResult.success ? 'SUCCESS' : 'FAILED'} ${telegramResult.error || ''}`);
 		channels.push({
 			type: 'telegram',
 			success: telegramResult.success,
 			error: telegramResult.error,
 			recipients: config.notifications.telegram.chatIds,
 		});
+	} else {
+		console.log('Telegram notification skipped (not enabled or no chat IDs)');
 	}
 
 	// 发送 Bark
 	if (config.notifications.bark?.enabled && config.notifications.bark.deviceKeys.length > 0) {
+		console.log('Attempting to send Bark notification...');
 		const barkResult = await sendBarkNotification(config.notifications.bark.deviceKeys, result, env);
+		console.log(`Bark result: ${barkResult.success ? 'SUCCESS' : 'FAILED'} ${barkResult.error || ''}`);
 		channels.push({
 			type: 'bark',
 			success: barkResult.success,
 			error: barkResult.error,
 			recipients: config.notifications.bark.deviceKeys,
 		});
+	} else {
+		console.log('Bark notification skipped (not enabled or no device keys)');
 	}
 
 	// 总是保存通知日志（即使没有发送任何通知）

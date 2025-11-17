@@ -6,15 +6,19 @@ import { sendNotifications } from './notifications';
  * 定时任务：检查所有站点
  */
 export async function runMonitoringCheck(env: Env): Promise<void> {
-	console.log('Starting monitoring check...');
+	console.log('=== Starting monitoring check ===');
 
 	const [sites, config] = await Promise.all([
 		getSites(env.STATUS_KV),
 		getConfig(env.STATUS_KV),
 	]);
 
+	console.log(`Failure threshold: ${config.failureThreshold}`);
+
 	// 只检查已启用的站点
 	const enabledSites = sites.filter(s => s.enabled);
+
+	console.log(`Total sites: ${sites.length}, Enabled: ${enabledSites.length}`);
 
 	if (enabledSites.length === 0) {
 		console.log('No enabled sites to monitor');
@@ -45,10 +49,12 @@ export async function runMonitoringCheck(env: Env): Promise<void> {
 
 	// 只有在有失败站点时才发送通知
 	if (failedSites.length > 0) {
+		console.log(`Triggering notifications for ${failedSites.length} failed site(s)`);
 		await sendNotifications(result, config, env);
 	} else {
 		// 即使没有失败，也记录一次检查日志（但不发送通知）
 		console.log('All sites are operational, no notifications sent');
+		console.log(`Checked sites: ${enabledSites.map(s => s.alias).join(', ')}`);
 	}
 }
 
