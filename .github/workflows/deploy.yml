@@ -1,0 +1,24 @@
+# GitHub Actions 自动部署工作流
+# 需要在 GitHub Settings > Secrets and variables > Actions 中配置以下 secrets：
+# - CLOUDFLARE_API_TOKEN: Cloudflare API Token（需要 Workers 编辑权限）
+# - CLOUDFLARE_ACCOUNT_ID: Cloudflare Account ID
+
+name: Deploy to Cloudflare Workers
+
+on:
+  workflow_dispatch:  # 手动触发
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
