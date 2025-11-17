@@ -62,6 +62,98 @@ export const adminHTML = `<!DOCTYPE html>
         .failed-sites-list { margin-top: 10px; padding: 10px; background: #fff5f5; border-radius: 4px; }
         .failed-sites-list li { margin: 5px 0; color: #c53030; }
         .empty-state { text-align: center; padding: 40px; color: #999; }
+
+        /* Mobile cards container - hidden on desktop */
+        .mobile-cards {
+            display: none;
+        }
+
+        /* Card styles for mobile */
+        .site-card, .status-card {
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 12px;
+            background: white;
+        }
+
+        .card-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .card-row:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .card-label {
+            font-weight: 600;
+            color: #666;
+            font-size: 13px;
+        }
+
+        .card-value {
+            color: #333;
+            font-size: 13px;
+            text-align: right;
+            word-break: break-all;
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #f0f0f0;
+        }
+
+        .card-actions button {
+            flex: 1;
+        }
+
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            header { padding: 15px; }
+            .content { padding: 15px; }
+            h1 { font-size: 20px; }
+
+            /* Tabs - allow wrapping */
+            .tabs { flex-wrap: wrap; gap: 8px; }
+            .tab { padding: 8px 12px; font-size: 13px; }
+
+            /* Hide tables, show cards on mobile */
+            table { display: none; }
+            .mobile-cards { display: block; }
+
+            /* Button adjustments */
+            button { font-size: 13px; padding: 6px 12px; }
+
+            /* Tag input */
+            .tag-input input { min-width: 80px; }
+
+            /* Notification logs */
+            .notification-log-header { flex-direction: column; gap: 8px; align-items: flex-start; }
+            .notification-channels { gap: 6px; }
+            .channel-badge { padding: 4px 8px; font-size: 11px; }
+
+            /* Modal - full screen on mobile */
+            .modal-content {
+                width: 100%;
+                height: 100%;
+                max-width: 100%;
+                border-radius: 0;
+                padding: 20px;
+            }
+
+            /* Empty state */
+            .empty-state { padding: 20px; font-size: 14px; }
+        }
     </style>
 </head>
 <body>
@@ -93,6 +185,7 @@ export const adminHTML = `<!DOCTYPE html>
                     </thead>
                     <tbody></tbody>
                 </table>
+                <div id="sitesCards" class="mobile-cards"></div>
             </div>
 
             <div id="configTab" class="tab-content">
@@ -170,6 +263,7 @@ export const adminHTML = `<!DOCTYPE html>
                     </thead>
                     <tbody></tbody>
                 </table>
+                <div id="statusCards" class="mobile-cards"></div>
             </div>
 
             <div id="notificationsTab" class="tab-content">
@@ -243,6 +337,8 @@ export const adminHTML = `<!DOCTYPE html>
             try {
                 const res = await fetch(buildApiUrl('/sites'));
                 const data = await res.json();
+
+                // Populate table (for desktop)
                 const tbody = document.querySelector('#sitesTable tbody');
                 tbody.innerHTML = data.sites.map(site => \`
                     <tr>
@@ -255,6 +351,33 @@ export const adminHTML = `<!DOCTYPE html>
                             <button class="btn-danger" onclick="deleteSite('\${site.id}')">Delete</button>
                         </td>
                     </tr>
+                \`).join('');
+
+                // Populate cards (for mobile)
+                const cardsContainer = document.getElementById('sitesCards');
+                cardsContainer.innerHTML = data.sites.map(site => \`
+                    <div class="site-card">
+                        <div class="card-row">
+                            <span class="card-label">Alias:</span>
+                            <span class="card-value">\${site.alias}</span>
+                        </div>
+                        <div class="card-row">
+                            <span class="card-label">URL:</span>
+                            <span class="card-value">\${site.url}</span>
+                        </div>
+                        <div class="card-row">
+                            <span class="card-label">Enabled:</span>
+                            <span class="card-value">\${site.enabled ? '✓' : '✗'}</span>
+                        </div>
+                        <div class="card-row">
+                            <span class="card-label">Created:</span>
+                            <span class="card-value">\${new Date(site.createdAt).toLocaleString()}</span>
+                        </div>
+                        <div class="card-actions">
+                            <button class="btn-primary" onclick="editSite('\${site.id}')">Edit</button>
+                            <button class="btn-danger" onclick="deleteSite('\${site.id}')">Delete</button>
+                        </div>
+                    </div>
                 \`).join('');
             } catch (error) {
                 alert('Failed to load sites: ' + error.message);
@@ -287,6 +410,8 @@ export const adminHTML = `<!DOCTYPE html>
             try {
                 const res = await fetch(buildApiUrl('/status'));
                 const data = await res.json();
+
+                // Populate table (for desktop)
                 const tbody = document.querySelector('#statusTable tbody');
                 tbody.innerHTML = data.sites.map(site => {
                     const status = site.status || {};
@@ -300,6 +425,41 @@ export const adminHTML = `<!DOCTYPE html>
                             <td>\${status.lastChecked ? new Date(status.lastChecked).toLocaleString() : 'Never'}</td>
                             <td>\${status.lastError || '-'}</td>
                         </tr>
+                    \`;
+                }).join('');
+
+                // Populate cards (for mobile)
+                const cardsContainer = document.getElementById('statusCards');
+                cardsContainer.innerHTML = data.sites.map(site => {
+                    const status = site.status || {};
+                    const statusClass = status.lastStatus === 'OK' ? 'ok' : status.lastStatus === 'FAILED' ? 'failed' : 'unknown';
+                    return \`
+                        <div class="status-card">
+                            <div class="card-row">
+                                <span class="card-label">Alias:</span>
+                                <span class="card-value">\${site.alias}</span>
+                            </div>
+                            <div class="card-row">
+                                <span class="card-label">URL:</span>
+                                <span class="card-value">\${site.url}</span>
+                            </div>
+                            <div class="card-row">
+                                <span class="card-label">Status:</span>
+                                <span class="card-value"><span class="status \${statusClass}">\${status.lastStatus || 'UNKNOWN'}</span></span>
+                            </div>
+                            <div class="card-row">
+                                <span class="card-label">Failures:</span>
+                                <span class="card-value">\${status.consecutiveFailures || 0}</span>
+                            </div>
+                            <div class="card-row">
+                                <span class="card-label">Last Checked:</span>
+                                <span class="card-value">\${status.lastChecked ? new Date(status.lastChecked).toLocaleString() : 'Never'}</span>
+                            </div>
+                            <div class="card-row">
+                                <span class="card-label">Error:</span>
+                                <span class="card-value">\${status.lastError || '-'}</span>
+                            </div>
+                        </div>
                     \`;
                 }).join('');
             } catch (error) {
