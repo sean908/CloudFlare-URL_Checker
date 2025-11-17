@@ -1,5 +1,6 @@
 import { Env, MonitorSite, GlobalConfig } from './types';
 import { getSites, addSite, updateSite, deleteSite, getConfig, saveConfig, getSiteStatus } from './storage';
+import { getNotificationLogs } from './notifications';
 
 /**
  * API 路由处理器
@@ -8,16 +9,7 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
 	const url = new URL(request.url);
 	const path = url.pathname;
 
-	// 简单的 Token 认证
-	const config = await getConfig(env.STATUS_KV);
-	if (config.adminToken) {
-		const authHeader = request.headers.get('Authorization');
-		const token = authHeader?.replace('Bearer ', '');
-
-		if (token !== config.adminToken) {
-			return jsonResponse({ error: 'Unauthorized' }, 401);
-		}
-	}
+	// Token 验证已经在 index.ts 中完成，这里不需要再验证
 
 	// 路由分发
 	if (path === '/api/sites' && request.method === 'GET') {
@@ -48,6 +40,10 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
 
 	if (path === '/api/status' && request.method === 'GET') {
 		return handleGetStatus(env);
+	}
+
+	if (path === '/api/notifications' && request.method === 'GET') {
+		return handleGetNotifications(env);
 	}
 
 	return jsonResponse({ error: 'Not found' }, 404);
@@ -163,6 +159,16 @@ async function handleGetStatus(env: Env): Promise<Response> {
 		return jsonResponse({ sites: sitesWithStatus });
 	} catch (error) {
 		return jsonResponse({ error: 'Failed to fetch status' }, 500);
+	}
+}
+
+// GET /api/notifications - 获取通知历史
+async function handleGetNotifications(env: Env): Promise<Response> {
+	try {
+		const logs = await getNotificationLogs(env.STATUS_KV);
+		return jsonResponse({ logs });
+	} catch (error) {
+		return jsonResponse({ error: 'Failed to fetch notification logs' }, 500);
 	}
 }
 

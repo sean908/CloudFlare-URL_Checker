@@ -2,6 +2,34 @@ import { Env } from './types';
 import { runMonitoringCheck } from './monitor';
 import { handleApiRequest } from './api';
 import { adminHTML } from './admin';
+import { fakeNginxPage } from './fake-page';
+
+/**
+ * 验证 URL 中的 token 参数
+ */
+function validateToken(url: URL, env: Env): boolean {
+	// 如果没有设置 ADMIN_TOKEN，则不需要验证
+	if (!env.ADMIN_TOKEN) {
+		return true;
+	}
+
+	// 从 URL 参数获取 token
+	const token = url.searchParams.get('tk');
+	return token === env.ADMIN_TOKEN;
+}
+
+/**
+ * 返回伪造的 Nginx 页面
+ */
+function returnFakePage(): Response {
+	return new Response(fakeNginxPage, {
+		status: 200,
+		headers: {
+			'Content-Type': 'text/html; charset=utf-8',
+			'Server': 'nginx/1.24.0',
+		},
+	});
+}
 
 /**
  * Cloudflare Worker 入口点
@@ -12,6 +40,11 @@ export default {
 	 */
 	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
 		const url = new URL(request.url);
+
+		// Token 验证（除了 OPTIONS 请求）
+		if (request.method !== 'OPTIONS' && !validateToken(url, env)) {
+			return returnFakePage();
+		}
 
 		// CORS 预检请求
 		if (request.method === 'OPTIONS') {

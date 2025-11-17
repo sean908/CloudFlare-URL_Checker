@@ -43,9 +43,12 @@ export async function runMonitoringCheck(env: Env): Promise<void> {
 
 	console.log(`Check completed: ${enabledSites.length} sites, ${failedSites.length} failed`);
 
-	// 发送通知
+	// 只有在有失败站点时才发送通知
 	if (failedSites.length > 0) {
 		await sendNotifications(result, config, env);
+	} else {
+		// 即使没有失败，也记录一次检查日志（但不发送通知）
+		console.log('All sites are operational, no notifications sent');
 	}
 }
 

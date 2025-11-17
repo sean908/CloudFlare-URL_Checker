@@ -1,6 +1,8 @@
 // 环境变量类型定义
 export interface Env {
 	STATUS_KV: KVNamespace;
+	// 管理后台访问令牌（通过 wrangler secret put ADMIN_TOKEN 设置）
+	ADMIN_TOKEN?: string;
 	// 邮件发送配置（使用 MailChannels 或其他邮件服务）
 	EMAIL_FROM?: string;
 	// Telegram Bot Token
@@ -51,9 +53,6 @@ export interface GlobalConfig {
 			deviceKeys: string[]; // Bark 设备 Key 列表
 		};
 	};
-
-	// 管理后台认证（简单的 token 认证）
-	adminToken?: string;
 }
 
 // 默认配置
@@ -76,4 +75,17 @@ export interface CheckResult {
 		error?: string;
 	}>;
 	timestamp: string;
+}
+
+// 通知日志记录
+export interface NotificationLog {
+	id: string; // 唯一ID
+	timestamp: string; // 发送时间（ISO 8601）
+	result: CheckResult; // 检查结果
+	channels: Array<{
+		type: 'email' | 'telegram' | 'bark';
+		success: boolean;
+		error?: string;
+		recipients?: string[]; // 接收者列表
+	}>;
 }

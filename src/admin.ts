@@ -26,6 +26,8 @@ export const adminHTML = `<!DOCTYPE html>
         .status.ok { background: #d4edda; color: #155724; }
         .status.failed { background: #f8d7da; color: #721c24; }
         .status.unknown { background: #e2e3e5; color: #383d41; }
+        .status.success { background: #d4edda; color: #155724; }
+        .status.error { background: #f8d7da; color: #721c24; }
         button { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
         .btn-primary { background: #007bff; color: white; }
         .btn-danger { background: #dc3545; color: white; }
@@ -42,31 +44,37 @@ export const adminHTML = `<!DOCTYPE html>
         .modal-content { background: white; padding: 30px; border-radius: 8px; width: 90%; max-width: 500px; }
         .modal-header { margin-bottom: 20px; }
         .modal-footer { margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end; }
-        .auth-section { margin-bottom: 20px; padding: 15px; background: #fff3cd; border-radius: 4px; }
-        .auth-section input { margin-top: 10px; }
         .notification-config { margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 4px; }
         .notification-config h4 { margin-bottom: 10px; }
         .tag-input { display: flex; flex-wrap: wrap; gap: 5px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; min-height: 40px; }
         .tag { background: #007bff; color: white; padding: 4px 8px; border-radius: 4px; display: flex; align-items: center; gap: 5px; }
         .tag button { background: transparent; border: none; color: white; cursor: pointer; padding: 0 4px; }
         .tag-input input { border: none; outline: none; flex: 1; min-width: 150px; }
+        .notification-log { border: 1px solid #ddd; border-radius: 4px; padding: 15px; margin-bottom: 15px; }
+        .notification-log-header { display: flex; justify-content: space-between; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
+        .notification-log-time { font-weight: 600; color: #333; }
+        .notification-log-summary { color: #666; font-size: 14px; }
+        .notification-channels { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+        .channel-badge { padding: 6px 12px; border-radius: 4px; font-size: 12px; font-weight: 500; }
+        .channel-badge.email { background: #e3f2fd; color: #1976d2; }
+        .channel-badge.telegram { background: #e8f5e9; color: #388e3c; }
+        .channel-badge.bark { background: #fff3e0; color: #f57c00; }
+        .failed-sites-list { margin-top: 10px; padding: 10px; background: #fff5f5; border-radius: 4px; }
+        .failed-sites-list li { margin: 5px 0; color: #c53030; }
+        .empty-state { text-align: center; padding: 40px; color: #999; }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
             <h1>Site Monitor Dashboard</h1>
-            <p>Manage your monitored sites and notifications</p>
-
-            <div class="auth-section" id="authSection">
-                <label>Admin Token (if configured):</label>
-                <input type="password" id="adminToken" placeholder="Enter admin token">
-            </div>
+            <p>Monitoring your sites with automated health checks</p>
 
             <div class="tabs">
                 <button class="tab active" onclick="switchTab('sites')">Sites</button>
                 <button class="tab" onclick="switchTab('config')">Configuration</button>
                 <button class="tab" onclick="switchTab('status')">Status</button>
+                <button class="tab" onclick="switchTab('notifications')">Notifications</button>
             </div>
         </header>
 
@@ -163,6 +171,11 @@ export const adminHTML = `<!DOCTYPE html>
                     <tbody></tbody>
                 </table>
             </div>
+
+            <div id="notificationsTab" class="tab-content">
+                <button class="btn-secondary" onclick="loadNotifications()">Refresh Logs</button>
+                <div id="notificationLogs"></div>
+            </div>
         </div>
     </div>
 
@@ -198,9 +211,19 @@ export const adminHTML = `<!DOCTYPE html>
         const API_BASE = window.location.origin + '/api';
         let currentTab = 'sites';
 
-        function getAuthHeaders() {
-            const token = document.getElementById('adminToken').value;
-            return token ? { 'Authorization': 'Bearer ' + token } : {};
+        // 从 URL 获取 token
+        function getToken() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('tk') || '';
+        }
+
+        function buildApiUrl(path) {
+            const token = getToken();
+            const url = new URL(API_BASE + path, window.location.origin);
+            if (token) {
+                url.searchParams.set('tk', token);
+            }
+            return url.toString();
         }
 
         function switchTab(tab) {
@@ -213,11 +236,12 @@ export const adminHTML = `<!DOCTYPE html>
             if (tab === 'sites') loadSites();
             if (tab === 'config') loadConfig();
             if (tab === 'status') loadStatus();
+            if (tab === 'notifications') loadNotifications();
         }
 
         async function loadSites() {
             try {
-                const res = await fetch(API_BASE + '/sites', { headers: getAuthHeaders() });
+                const res = await fetch(buildApiUrl('/sites'));
                 const data = await res.json();
                 const tbody = document.querySelector('#sitesTable tbody');
                 tbody.innerHTML = data.sites.map(site => \`
@@ -239,7 +263,7 @@ export const adminHTML = `<!DOCTYPE html>
 
         async function loadConfig() {
             try {
-                const res = await fetch(API_BASE + '/config', { headers: getAuthHeaders() });
+                const res = await fetch(buildApiUrl('/config'));
                 const data = await res.json();
                 const cfg = data.config;
 
@@ -261,7 +285,7 @@ export const adminHTML = `<!DOCTYPE html>
 
         async function loadStatus() {
             try {
-                const res = await fetch(API_BASE + '/status', { headers: getAuthHeaders() });
+                const res = await fetch(buildApiUrl('/status'));
                 const data = await res.json();
                 const tbody = document.querySelector('#statusTable tbody');
                 tbody.innerHTML = data.sites.map(site => {
@@ -283,6 +307,53 @@ export const adminHTML = `<!DOCTYPE html>
             }
         }
 
+        async function loadNotifications() {
+            try {
+                const res = await fetch(buildApiUrl('/notifications'));
+                const data = await res.json();
+                const container = document.getElementById('notificationLogs');
+
+                if (data.logs.length === 0) {
+                    container.innerHTML = '<div class="empty-state">No notification logs yet</div>';
+                    return;
+                }
+
+                container.innerHTML = data.logs.map(log => {
+                    const channelsHtml = log.channels.map(ch => {
+                        const statusClass = ch.success ? 'success' : 'error';
+                        const recipients = ch.recipients ? \` (\${ch.recipients.length})\` : '';
+                        return \`<span class="status \${statusClass}">\${ch.type.toUpperCase()}\${recipients}</span>\`;
+                    }).join(' ');
+
+                    const failedSitesHtml = log.result.failedSites.length > 0 ? \`
+                        <div class="failed-sites-list">
+                            <strong>Failed Sites:</strong>
+                            <ul>
+                                \${log.result.failedSites.map(s => \`<li>\${s.alias} - \${s.url}\${s.error ? ' (' + s.error + ')' : ''}</li>\`).join('')}
+                            </ul>
+                        </div>
+                    \` : '';
+
+                    return \`
+                        <div class="notification-log">
+                            <div class="notification-log-header">
+                                <div class="notification-log-time">\${new Date(log.timestamp).toLocaleString()}</div>
+                                <div class="notification-log-summary">
+                                    Checked: \${log.result.totalSites} | Failed: \${log.result.failedSites.length}
+                                </div>
+                            </div>
+                            <div class="notification-channels">
+                                \${channelsHtml}
+                            </div>
+                            \${failedSitesHtml}
+                        </div>
+                    \`;
+                }).join('');
+            } catch (error) {
+                alert('Failed to load notifications: ' + error.message);
+            }
+        }
+
         function openAddSiteModal() {
             document.getElementById('modalTitle').textContent = 'Add Site';
             document.getElementById('siteForm').reset();
@@ -295,7 +366,7 @@ export const adminHTML = `<!DOCTYPE html>
         }
 
         async function editSite(id) {
-            const res = await fetch(API_BASE + '/sites', { headers: getAuthHeaders() });
+            const res = await fetch(buildApiUrl('/sites'));
             const data = await res.json();
             const site = data.sites.find(s => s.id === id);
             if (!site) return;
@@ -311,9 +382,8 @@ export const adminHTML = `<!DOCTYPE html>
         async function deleteSite(id) {
             if (!confirm('Are you sure you want to delete this site?')) return;
             try {
-                await fetch(API_BASE + '/sites/' + id, {
-                    method: 'DELETE',
-                    headers: getAuthHeaders()
+                await fetch(buildApiUrl('/sites/' + id), {
+                    method: 'DELETE'
                 });
                 loadSites();
             } catch (error) {
@@ -331,11 +401,11 @@ export const adminHTML = `<!DOCTYPE html>
             };
 
             try {
-                const url = id ? API_BASE + '/sites/' + id : API_BASE + '/sites';
+                const path = id ? '/sites/' + id : '/sites';
                 const method = id ? 'PUT' : 'POST';
-                await fetch(url, {
+                await fetch(buildApiUrl(path), {
                     method,
-                    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
                 closeSiteModal();
@@ -367,9 +437,9 @@ export const adminHTML = `<!DOCTYPE html>
             };
 
             try {
-                await fetch(API_BASE + '/config', {
+                await fetch(buildApiUrl('/config'), {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(config)
                 });
                 alert('Configuration saved successfully!');

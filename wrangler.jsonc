@@ -12,8 +12,8 @@
 	"kv_namespaces": [
 		{
 			"binding": "STATUS_KV",
-			"id": "<N/A>",
-			"preview_id": "<N/A>"
+			"id": "N/A",
+			"preview_id": "N/A"
 		}
 	],
 	// [3] 环境变量配置（可选）
@@ -21,6 +21,7 @@
 		"EMAIL_FROM": "monitor@example.com"
 	}
 	// [4] Secrets（敏感信息，通过 wrangler secret put 设置）
-	// wrangler secret put TELEGRAM_BOT_TOKEN
-	// wrangler secret put BARK_ENDPOINT (如果使用自建 Bark 服务)
+	// wrangler secret put ADMIN_TOKEN         # 管理后台访问令牌（URL参数 ?tk=xxx）
+	// wrangler secret put TELEGRAM_BOT_TOKEN  # Telegram Bot Token
+	// wrangler secret put BARK_ENDPOINT       # 自建 Bark 服务端点（可选）
 }
