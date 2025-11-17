@@ -1,22 +1,26 @@
 {
-  "name": "suc-bhecker",
-  "main": "src/index.ts",
-  "compatibility_date": "2025-10-01",
-
-  // [1] 配置 Cron 触发器，这里设置为每5分钟执行一次
-  "triggers": {
-    "crons": [
-      "*/5 * * * *"
-    ]
-  },
-
-  // [2] 绑定一个 KV Namespace，我们把它命名为 STATUS_KV
-  "kv_namespaces": [
-    {
-      "binding": "STATUS_KV",
-      "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", // 替换成你生成的 ID
-      "preview_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" // 替换成你生成的 preview ID
-    }
-  ]
+	"name": "suc-bhecker",
+	"main": "src/index.ts",
+	"compatibility_date": "2025-10-01",
+	// [1] 配置 Cron 触发器，默认每5分钟执行一次（可在管理后台修改）
+	"triggers": {
+		"crons": [
+			"*/5 * * * *"
+		]
+	},
+	// [2] 绑定 KV Namespace 用于存储站点列表、配置和状态
+	"kv_namespaces": [
+		{
+			"binding": "STATUS_KV",
+			"id": "<N/A>",
+			"preview_id": "<N/A>"
+		}
+	],
+	// [3] 环境变量配置（可选）
+	"vars": {
+		"EMAIL_FROM": "monitor@example.com"
+	}
+	// [4] Secrets（敏感信息，通过 wrangler secret put 设置）
+	// wrangler secret put TELEGRAM_BOT_TOKEN
+	// wrangler secret put BARK_ENDPOINT (如果使用自建 Bark 服务)
 }
-
