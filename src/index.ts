@@ -3,6 +3,7 @@ import { runMonitoringCheck } from './monitor';
 import { handleApiRequest } from './api';
 import { adminHTML } from './admin';
 import { fakeNginxPage } from './fake-page';
+import { createLogger } from './logger';
 
 /**
  * 验证 URL 中的 token 参数
@@ -86,7 +87,8 @@ export default {
 	 * 定时任务处理
 	 */
 	async scheduled(_controller: ScheduledController, env: Env, _ctx: ExecutionContext): Promise<void> {
-		console.log('Cron job triggered:', new Date().toISOString());
+		const logger = createLogger(env);
+		logger.info('Cron job triggered:', new Date().toISOString());
 		await runMonitoringCheck(env);
 	},
 };

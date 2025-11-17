@@ -1,27 +1,30 @@
 import { Env, MonitorSite, SiteStatus, CheckResult } from './types';
 import { getSites, getConfig, getSiteStatus, saveSiteStatus } from './storage';
 import { sendNotifications } from './notifications';
+import { createLogger } from './logger';
 
 /**
  * 定时任务：检查所有站点
  */
 export async function runMonitoringCheck(env: Env): Promise<void> {
-	console.log('=== Starting monitoring check ===');
+	const logger = createLogger(env);
+
+	logger.debug('=== Starting monitoring check ===');
 
 	const [sites, config] = await Promise.all([
 		getSites(env.STATUS_KV),
 		getConfig(env.STATUS_KV),
 	]);
 
-	console.log(`Failure threshold: ${config.failureThreshold}`);
+	logger.debug(`Failure threshold: ${config.failureThreshold}`);
 
 	// 只检查已启用的站点
 	const enabledSites = sites.filter(s => s.enabled);
 
-	console.log(`Total sites: ${sites.length}, Enabled: ${enabledSites.length}`);
+	logger.debug(`Total sites: ${sites.length}, Enabled: ${enabledSites.length}`);
 
 	if (enabledSites.length === 0) {
-		console.log('No enabled sites to monitor');
+		logger.info('No enabled sites to monitor');
 		return;
 	}
 
@@ -45,16 +48,16 @@ export async function runMonitoringCheck(env: Env): Promise<void> {
 		timestamp: new Date().toISOString(),
 	};
 
-	console.log(`Check completed: ${enabledSites.length} sites, ${failedSites.length} failed`);
+	logger.debug(`Check completed: ${enabledSites.length} sites, ${failedSites.length} failed`);
 
 	// 只有在有失败站点时才发送通知
 	if (failedSites.length > 0) {
-		console.log(`Triggering notifications for ${failedSites.length} failed site(s)`);
+		logger.info(`Triggering notifications for ${failedSites.length} failed site(s)`);
 		await sendNotifications(result, config, env);
 	} else {
 		// 即使没有失败，也记录一次检查日志（但不发送通知）
-		console.log('All sites are operational, no notifications sent');
-		console.log(`Checked sites: ${enabledSites.map(s => s.alias).join(', ')}`);
+		logger.info('All sites are operational, no notifications sent');
+		logger.debug(`Checked sites: ${enabledSites.map(s => s.alias).join(', ')}`);
 	}
 }
 
@@ -70,6 +73,7 @@ async function checkSite(
 	isFailed: boolean;
 	error?: string;
 }> {
+	const logger = createLogger(env);
 	let isCurrentlyDown = false;
 	let errorMessage: string | undefined;
 	let statusCode: number | undefined;
@@ -124,7 +128,7 @@ async function checkSite(
 
 		// 如果状态从 OK 变为 FAILED，或者仍然是 FAILED，记录日志
 		if (isFailed && previousStatus?.lastStatus !== 'FAILED') {
-			console.log(`[ALERT] ${site.alias} (${site.url}) is DOWN after ${consecutiveFailures} failures`);
+			logger.warn(`${site.alias} (${site.url}) is DOWN after ${consecutiveFailures} failures`);
 		}
 
 		await saveSiteStatus(env.STATUS_KV, newStatus);
@@ -146,7 +150,7 @@ async function checkSite(
 
 		// 如果从 FAILED 恢复到 OK，记录日志
 		if (previousStatus?.lastStatus === 'FAILED') {
-			console.log(`[RECOVERY] ${site.alias} (${site.url}) is back UP`);
+			logger.info(`${site.alias} (${site.url}) is back UP`);
 		}
 
 		await saveSiteStatus(env.STATUS_KV, newStatus);

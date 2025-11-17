@@ -9,6 +9,8 @@ export interface Env {
 	TELEGRAM_BOT_TOKEN?: string;
 	// Bark 服务端点（可选，如果用户自建）
 	BARK_ENDPOINT?: string;
+	// 日志级别（DEBUG | INFO | WARN | ERROR，默认 INFO）
+	LOG_LEVEL?: string;
 }
 
 // 监控站点配置

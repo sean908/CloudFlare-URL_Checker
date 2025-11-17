@@ -18,7 +18,8 @@
 	],
 	// [3] 环境变量配置（可选）
 	"vars": {
-		"EMAIL_FROM": "monitor@example.com"
+		"EMAIL_FROM": "monitor@example.com",
+		"LOG_LEVEL": "INFO"  // DEBUG | INFO | WARN | ERROR（默认 INFO）
 	},
 	// [4] Secrets（敏感信息，通过 wrangler secret put 设置）
 	// wrangler secret put ADMIN_TOKEN         # 管理后台访问令牌（URL参数 ?tk=xxx）
