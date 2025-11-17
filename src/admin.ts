@@ -205,7 +205,7 @@ export const adminHTML = `<!DOCTYPE html>
                     <div class="notification-config">
                         <h4>Email Notifications</h4>
                         <div class="checkbox-group">
-                            <input type="checkbox" id="emailEnabled">
+                            <input type="checkbox" id="emailEnabled" onchange="toggleNotificationInputs('email')">
                             <label for="emailEnabled">Enable Email</label>
                         </div>
                         <div class="form-group">
@@ -219,7 +219,7 @@ export const adminHTML = `<!DOCTYPE html>
                     <div class="notification-config">
                         <h4>Telegram Notifications</h4>
                         <div class="checkbox-group">
-                            <input type="checkbox" id="telegramEnabled">
+                            <input type="checkbox" id="telegramEnabled" onchange="toggleNotificationInputs('telegram')">
                             <label for="telegramEnabled">Enable Telegram</label>
                         </div>
                         <div class="form-group">
@@ -233,7 +233,7 @@ export const adminHTML = `<!DOCTYPE html>
                     <div class="notification-config">
                         <h4>Bark Notifications</h4>
                         <div class="checkbox-group">
-                            <input type="checkbox" id="barkEnabled">
+                            <input type="checkbox" id="barkEnabled" onchange="toggleNotificationInputs('bark')">
                             <label for="barkEnabled">Enable Bark</label>
                         </div>
                         <div class="form-group">
@@ -247,7 +247,7 @@ export const adminHTML = `<!DOCTYPE html>
                     <div class="notification-config">
                         <h4>📊 Daily Report</h4>
                         <div class="checkbox-group">
-                            <input type="checkbox" id="dailyReportEnabled">
+                            <input type="checkbox" id="dailyReportEnabled" onchange="toggleDailyReportInputs()">
                             <label for="dailyReportEnabled">Enable Daily Report</label>
                         </div>
                         <div class="form-group">
@@ -322,6 +322,41 @@ export const adminHTML = `<!DOCTYPE html>
     <script>
         const API_BASE = window.location.origin + '/api';
         let currentTab = 'sites';
+
+        function toggleNotificationInputs(type) {
+            const config = {
+                email: { checkboxId: 'emailEnabled', containerId: 'emailRecipients' },
+                telegram: { checkboxId: 'telegramEnabled', containerId: 'telegramChatIds' },
+                bark: { checkboxId: 'barkEnabled', containerId: 'barkDeviceKeys' }
+            }[type];
+
+            if (!config) return;
+
+            const checkbox = document.getElementById(config.checkboxId);
+            const container = document.getElementById(config.containerId);
+            const isEnabled = Boolean(checkbox?.checked);
+
+            if (!container) return;
+
+            container.style.pointerEvents = isEnabled ? '' : 'none';
+            container.style.opacity = isEnabled ? '' : '0.5';
+            container.querySelectorAll('input').forEach(input => {
+                input.disabled = !isEnabled;
+            });
+        }
+
+        function toggleDailyReportInputs() {
+            const isEnabled = document.getElementById('dailyReportEnabled').checked;
+            document.getElementById('dailyReportTimezone').disabled = !isEnabled;
+            document.getElementById('dailyReportTime').disabled = !isEnabled;
+        }
+
+        function initializeDisabledStates() {
+            toggleNotificationInputs('email');
+            toggleNotificationInputs('telegram');
+            toggleNotificationInputs('bark');
+            toggleDailyReportInputs();
+        }
 
         // 从 URL 获取 token
         function getToken() {
@@ -424,6 +459,8 @@ export const adminHTML = `<!DOCTYPE html>
                 document.getElementById('dailyReportEnabled').checked = cfg.dailyReport?.enabled || false;
                 document.getElementById('dailyReportTimezone').value = cfg.dailyReport?.timezone || '+0';
                 document.getElementById('dailyReportTime').value = cfg.dailyReport?.reportTime || '09:00';
+
+                initializeDisabledStates();
             } catch (error) {
                 alert('Failed to load config: ' + error.message);
             }
