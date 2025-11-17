@@ -5,7 +5,8 @@ import { adminHTML } from './admin';
 import { fakeNginxPage } from './fake-page';
 import { createLogger } from './logger';
 import { getConfig } from './storage';
-import { checkAndSendDailyReport } from './daily-report';
+import { checkAndSendDailyReport, generateDailyReport } from './daily-report';
+import { sendDailyReportNotification } from './notifications';
 
 /**
  * 验证 URL 中的 token 参数
@@ -78,6 +79,39 @@ export default {
 		if (url.pathname === '/check') {
 			ctx.waitUntil(runMonitoringCheck(env));
 			return new Response('Monitoring check triggered', {
+				headers: { 'Content-Type': 'text/plain' },
+			});
+		}
+
+		// 手动触发每日报告（用于测试）
+		if (url.pathname === '/trigger-report') {
+			const logger = createLogger(env);
+
+			ctx.waitUntil((async () => {
+				try {
+					const config = await getConfig(env.STATUS_KV);
+
+					if (!config.dailyReport?.enabled) {
+						logger.warn('Daily report is not enabled in config');
+						return;
+					}
+
+					logger.info('Manually triggering daily report...');
+
+					const report = await generateDailyReport(config, env);
+					if (!report) {
+						logger.warn('No data available for daily report');
+						return;
+					}
+
+					await sendDailyReportNotification(report, config, env);
+					logger.info('Daily report sent successfully (manual trigger)');
+				} catch (error) {
+					logger.error('Failed to send daily report:', error);
+				}
+			})());
+
+			return new Response('Daily report triggered (check logs for status)', {
 				headers: { 'Content-Type': 'text/plain' },
 			});
 		}
