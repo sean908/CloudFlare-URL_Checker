@@ -136,6 +136,17 @@ async function handleGetConfig(env: Env): Promise<Response> {
 async function handleUpdateConfig(request: Request, env: Env): Promise<Response> {
 	try {
 		const body = await request.json() as GlobalConfig;
+
+		// 验证 timezone 格式（如果提供了 timezone 值）
+		if (body.dailyReport?.timezone) {
+			const { parseTimezoneOffset } = await import('./utils');
+			try {
+				parseTimezoneOffset(body.dailyReport.timezone);
+			} catch (error) {
+				return jsonResponse({ error: (error as Error).message }, 400);
+			}
+		}
+
 		await saveConfig(env.STATUS_KV, body);
 		return jsonResponse({ config: body });
 	} catch (error) {

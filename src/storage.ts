@@ -1,10 +1,12 @@
-import { MonitorSite, GlobalConfig, SiteStatus, DEFAULT_CONFIG } from './types';
+import { MonitorSite, GlobalConfig, SiteStatus, DEFAULT_CONFIG, DailyStats } from './types';
 
 // KV 键名常量
 const KEYS = {
 	SITES_LIST: 'sites:list',
 	CONFIG: 'config:global',
 	siteStatus: (url: string) => `status:${url}`,
+	dailyStats: (date: string) => `stats:daily:${date}`,
+	lastReportDate: () => 'report:last-date',
 };
 
 /**
@@ -114,4 +116,66 @@ export async function getSiteStatus(kv: KVNamespace, url: string): Promise<SiteS
  */
 export async function saveSiteStatus(kv: KVNamespace, status: SiteStatus): Promise<void> {
 	await kv.put(KEYS.siteStatus(status.url), JSON.stringify(status));
+}
+
+/**
+ * 获取指定日期的统计数据
+ */
+export async function getDailyStats(kv: KVNamespace, date: string): Promise<DailyStats | null> {
+	const data = await kv.get(KEYS.dailyStats(date), 'json');
+	return data as DailyStats | null;
+}
+
+/**
+ * 更新每日统计数据（增量更新）
+ */
+export async function updateDailyStats(
+	kv: KVNamespace,
+	date: string,
+	siteUrl: string,
+	siteAlias: string,
+	isFailed: boolean
+): Promise<void> {
+	const key = KEYS.dailyStats(date);
+
+	// 获取现有数据
+	const existing = await kv.get(key, 'json') as DailyStats | null;
+
+	const stats: DailyStats = existing || {
+		date,
+		sites: {}
+	};
+
+	// 初始化或更新站点统计
+	if (!stats.sites[siteUrl]) {
+		stats.sites[siteUrl] = {
+			alias: siteAlias,
+			totalChecks: 0,
+			failedChecks: 0
+		};
+	}
+
+	stats.sites[siteUrl].totalChecks++;
+	if (isFailed) {
+		stats.sites[siteUrl].failedChecks++;
+	}
+
+	// 保存，TTL 8 天自动过期
+	await kv.put(key, JSON.stringify(stats), {
+		expirationTtl: 8 * 24 * 3600 // 8 days
+	});
+}
+
+/**
+ * 获取最后发送日报的日期
+ */
+export async function getLastReportDate(kv: KVNamespace): Promise<string | null> {
+	return await kv.get(KEYS.lastReportDate());
+}
+
+/**
+ * 设置最后发送日报的日期
+ */
+export async function setLastReportDate(kv: KVNamespace, date: string): Promise<void> {
+	await kv.put(KEYS.lastReportDate(), date);
 }

@@ -55,6 +55,13 @@ export interface GlobalConfig {
 			deviceKeys: string[]; // Bark 设备 Key 列表
 		};
 	};
+
+	// 每日运行报告配置
+	dailyReport?: {
+		enabled: boolean; // 是否启用日报
+		timezone: string; // 时区偏移，格式："+8" 或 "-3"，默认 "+0" (UTC)
+		reportTime: string; // 报告时间，格式："09:00"
+	};
 }
 
 // 默认配置
@@ -65,6 +72,11 @@ export const DEFAULT_CONFIG: GlobalConfig = {
 		email: { enabled: false, recipients: [] },
 		telegram: { enabled: false, chatIds: [] },
 		bark: { enabled: false, deviceKeys: [] }
+	},
+	dailyReport: {
+		enabled: false,
+		timezone: "+0",
+		reportTime: "09:00"
 	}
 };
 
@@ -90,4 +102,27 @@ export interface NotificationLog {
 		error?: string;
 		recipients?: string[]; // 接收者列表
 	}>;
+}
+
+// 每日统计数据
+export interface DailyStats {
+	date: string; // YYYY-MM-DD
+	sites: {
+		[url: string]: {
+			alias: string; // 站点别名
+			totalChecks: number; // 总检查次数
+			failedChecks: number; // 失败次数
+		};
+	};
+}
+
+// 每日报告内容
+export interface DailyReport {
+	date: string; // YYYY-MM-DD
+	timezone: string; // 时区
+	timestamp: string; // 报告生成时间戳
+	stats: DailyStats; // 统计数据
+	totalSites: number; // 总站点数
+	totalChecks: number; // 总检查次数
+	totalFailures: number; // 总失败次数
 }

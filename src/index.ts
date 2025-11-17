@@ -4,6 +4,8 @@ import { handleApiRequest } from './api';
 import { adminHTML } from './admin';
 import { fakeNginxPage } from './fake-page';
 import { createLogger } from './logger';
+import { getConfig } from './storage';
+import { checkAndSendDailyReport } from './daily-report';
 
 /**
  * 验证 URL 中的 token 参数
@@ -89,6 +91,12 @@ export default {
 	async scheduled(_controller: ScheduledController, env: Env, _ctx: ExecutionContext): Promise<void> {
 		const logger = createLogger(env);
 		logger.info('Cron job triggered:', new Date().toISOString());
+
+		// 运行监控检查
 		await runMonitoringCheck(env);
+
+		// 检查并发送每日报告
+		const config = await getConfig(env.STATUS_KV);
+		await checkAndSendDailyReport(config, env);
 	},
 };

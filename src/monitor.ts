@@ -1,7 +1,8 @@
 import { Env, MonitorSite, SiteStatus, CheckResult } from './types';
-import { getSites, getConfig, getSiteStatus, saveSiteStatus } from './storage';
+import { getSites, getConfig, getSiteStatus, saveSiteStatus, updateDailyStats } from './storage';
 import { sendNotifications } from './notifications';
 import { createLogger } from './logger';
+import { getCurrentDateInTimezone } from './utils';
 
 /**
  * 定时任务：检查所有站点
@@ -49,6 +50,23 @@ export async function runMonitoringCheck(env: Env): Promise<void> {
 	};
 
 	logger.debug(`Check completed: ${enabledSites.length} sites, ${failedSites.length} failed`);
+
+	// 更新每日统计数据（按配置的时区）
+	const timezone = config.dailyReport?.timezone || '+0';
+	const currentDate = getCurrentDateInTimezone(timezone);
+
+	// 并行更新所有站点的统计
+	await Promise.all(
+		checkResults.map(r =>
+			updateDailyStats(
+				env.STATUS_KV,
+				currentDate,
+				r.site.url,
+				r.site.alias,
+				r.isFailed
+			)
+		)
+	);
 
 	// 只有在有失败站点时才发送通知
 	if (failedSites.length > 0) {

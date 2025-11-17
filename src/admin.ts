@@ -244,6 +244,24 @@ export const adminHTML = `<!DOCTYPE html>
                         </div>
                     </div>
 
+                    <div class="notification-config">
+                        <h4>📊 Daily Report</h4>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="dailyReportEnabled">
+                            <label for="dailyReportEnabled">Enable Daily Report</label>
+                        </div>
+                        <div class="form-group">
+                            <label>Timezone:</label>
+                            <input type="text" id="dailyReportTimezone" placeholder="+8" value="+0">
+                            <small>Format: +8 (UTC+8) or -5 (UTC-5), default +0 (UTC)</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Report Time:</label>
+                            <input type="time" id="dailyReportTime" value="09:00">
+                            <small>Daily report will be sent at this time (in your timezone)</small>
+                        </div>
+                    </div>
+
                     <button type="submit" class="btn-success">Save Configuration</button>
                 </form>
             </div>
@@ -401,6 +419,11 @@ export const adminHTML = `<!DOCTYPE html>
 
                 document.getElementById('barkEnabled').checked = cfg.notifications.bark?.enabled || false;
                 setTags('barkDeviceKeys', cfg.notifications.bark?.deviceKeys || []);
+
+                // Daily Report
+                document.getElementById('dailyReportEnabled').checked = cfg.dailyReport?.enabled || false;
+                document.getElementById('dailyReportTimezone').value = cfg.dailyReport?.timezone || '+0';
+                document.getElementById('dailyReportTime').value = cfg.dailyReport?.reportTime || '09:00';
             } catch (error) {
                 alert('Failed to load config: ' + error.message);
             }
@@ -577,6 +600,7 @@ export const adminHTML = `<!DOCTYPE html>
 
         document.getElementById('configForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+
             const config = {
                 cronSchedule: document.getElementById('cronSchedule').value,
                 failureThreshold: parseInt(document.getElementById('failureThreshold').value),
@@ -593,15 +617,27 @@ export const adminHTML = `<!DOCTYPE html>
                         enabled: document.getElementById('barkEnabled').checked,
                         deviceKeys: getTags('barkDeviceKeys')
                     }
+                },
+                dailyReport: {
+                    enabled: document.getElementById('dailyReportEnabled').checked,
+                    timezone: document.getElementById('dailyReportTimezone').value.trim() || '+0',
+                    reportTime: document.getElementById('dailyReportTime').value || '09:00'
                 }
             };
 
             try {
-                await fetch(buildApiUrl('/config'), {
+                const response = await fetch(buildApiUrl('/config'), {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(config)
                 });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    alert('Failed to save config: ' + (errorData.error || 'Unknown error'));
+                    return;
+                }
+
                 alert('Configuration saved successfully!');
             } catch (error) {
                 alert('Failed to save config: ' + error.message);

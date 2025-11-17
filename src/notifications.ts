@@ -1,5 +1,6 @@
-import { Env, CheckResult, NotificationLog, GlobalConfig } from './types';
+import { Env, CheckResult, NotificationLog, GlobalConfig, DailyReport } from './types';
 import { createLogger } from './logger';
+import { formatDailyReportText, formatDailyReportMarkdown, formatDailyReportSimple } from './daily-report';
 
 /**
  * 发送邮件通知（使用 MailChannels）
@@ -332,3 +333,157 @@ export async function getNotificationLogs(kv: KVNamespace): Promise<Notification
 		return [];
 	}
 }
+
+/**
+ * 发送每日报告通知
+ */
+export async function sendDailyReportNotification(
+	report: DailyReport,
+	config: GlobalConfig,
+	env: Env
+): Promise<void> {
+	const logger = createLogger(env);
+
+	logger.info('Sending daily report via notification channels...');
+
+	// 发送邮件
+	if (config.notifications.email?.enabled && config.notifications.email.recipients.length > 0) {
+		logger.debug('Sending daily report via email...');
+		await sendDailyReportEmail(config.notifications.email.recipients, report, env);
+	}
+
+	// 发送 Telegram
+	if (config.notifications.telegram?.enabled && config.notifications.telegram.chatIds.length > 0) {
+		logger.debug('Sending daily report via Telegram...');
+		await sendDailyReportTelegram(config.notifications.telegram.chatIds, report, env);
+	}
+
+	// 发送 Bark
+	if (config.notifications.bark?.enabled && config.notifications.bark.deviceKeys.length > 0) {
+		logger.debug('Sending daily report via Bark...');
+		await sendDailyReportBark(config.notifications.bark.deviceKeys, report, env);
+	}
+}
+
+/**
+ * 通过邮件发送每日报告
+ */
+async function sendDailyReportEmail(recipients: string[], report: DailyReport, env: Env): Promise<void> {
+	const logger = createLogger(env);
+
+	if (!env.EMAIL_FROM) {
+		logger.error('EMAIL_FROM not configured, skipping daily report email');
+		return;
+	}
+
+	const subject = `📊 每日运行报告 - ${report.date}`;
+	const body = formatDailyReportText(report);
+
+	try {
+		const response = await fetch('https://api.mailchannels.net/tx/v1/send', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify({
+				personalizations: [
+					{
+						to: recipients.map(email => ({ email })),
+					},
+				],
+				from: {
+					email: env.EMAIL_FROM,
+					name: 'Site Monitor',
+				},
+				subject,
+				content: [
+					{
+						type: 'text/plain',
+						value: body,
+					},
+				],
+			}),
+		});
+
+		if (response.ok) {
+			logger.info('Daily report email sent successfully');
+		} else {
+			const errorText = await response.text();
+			logger.error(`Failed to send daily report email: HTTP ${response.status} - ${errorText.substring(0, 200)}`);
+		}
+	} catch (error) {
+		const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+		logger.error(`Failed to send daily report email: ${errorMsg}`);
+	}
+}
+
+/**
+ * 通过 Telegram 发送每日报告
+ */
+async function sendDailyReportTelegram(chatIds: string[], report: DailyReport, env: Env): Promise<void> {
+	const logger = createLogger(env);
+
+	if (!env.TELEGRAM_BOT_TOKEN) {
+		logger.error('TELEGRAM_BOT_TOKEN not configured, skipping daily report Telegram');
+		return;
+	}
+
+	const message = formatDailyReportMarkdown(report);
+	const apiUrl = `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`;
+
+	for (const chatId of chatIds) {
+		try {
+			const response = await fetch(apiUrl, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					chat_id: chatId,
+					text: message,
+					parse_mode: 'Markdown',
+				}),
+			});
+
+			if (response.ok) {
+				logger.info(`Daily report sent to Telegram chat ${chatId}`);
+			} else {
+				const responseText = await response.text();
+				logger.error(`Failed to send daily report to Telegram chat ${chatId}: HTTP ${response.status} - ${responseText.substring(0, 100)}`);
+			}
+		} catch (error) {
+			const errorMsg = error instanceof Error ? error.message : String(error);
+			logger.error(`Failed to send daily report to Telegram chat ${chatId}: ${errorMsg}`);
+		}
+	}
+}
+
+/**
+ * 通过 Bark 发送每日报告
+ */
+async function sendDailyReportBark(deviceKeys: string[], report: DailyReport, env: Env): Promise<void> {
+	const logger = createLogger(env);
+
+	const barkEndpoint = env.BARK_ENDPOINT || 'https://api.day.app';
+	const { title, body } = formatDailyReportSimple(report);
+
+	for (const deviceKey of deviceKeys) {
+		try {
+			const cleanEndpoint = barkEndpoint.replace(/\/$/, '');
+			const cleanKey = deviceKey.replace(/^\//, '').replace(/\/$/, '');
+			const url = `${cleanEndpoint}/${cleanKey}/${encodeURIComponent(title)}/${encodeURIComponent(body)}`;
+
+			const response = await fetch(url, { method: 'GET' });
+
+			if (response.ok) {
+				logger.info(`Daily report sent to Bark device ${deviceKey}`);
+			} else {
+				logger.error(`Failed to send daily report to Bark device ${deviceKey}: HTTP ${response.status}`);
+			}
+		} catch (error) {
+			const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+			logger.error(`Failed to send daily report to Bark device ${deviceKey}: ${errorMsg}`);
+		}
+	}
+}
+
