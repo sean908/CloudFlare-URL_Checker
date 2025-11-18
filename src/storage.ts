@@ -63,6 +63,12 @@ export async function updateSite(
 		throw new Error('Site not found');
 	}
 
+	// 如果 URL 变化，删除旧的状态数据（避免 KV 空间浪费）
+	const oldUrl = sites[index].url;
+	if (updates.url && updates.url !== oldUrl) {
+		await kv.delete(KEYS.siteStatus(oldUrl));
+	}
+
 	sites[index] = { ...sites[index], ...updates };
 	await saveSites(kv, sites);
 	return sites[index];
@@ -154,6 +160,9 @@ export async function updateDailyStats(
 			failedChecks: 0
 		};
 	}
+
+	// 每次都更新 alias，确保与站点列表同步
+	stats.sites[siteUrl].alias = siteAlias;
 
 	stats.sites[siteUrl].totalChecks++;
 	if (isFailed) {

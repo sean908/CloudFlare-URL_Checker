@@ -306,6 +306,9 @@ export const adminHTML = `<!DOCTYPE html>
                 <div class="form-group">
                     <label>URL:</label>
                     <input type="url" id="siteUrl" required>
+                    <small style="color: #666; font-size: 12px; margin-top: 4px; display: block;">
+                        ⚠️ 修改 URL 会导致统计数据重新开始
+                    </small>
                 </div>
                 <div class="checkbox-group">
                     <input type="checkbox" id="siteEnabled" checked>
